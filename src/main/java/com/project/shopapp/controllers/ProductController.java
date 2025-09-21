@@ -34,12 +34,6 @@ import jakarta.validation.Valid;
 @RequestMapping("${api.prefix}/products") // http://localhost:8088/api/v1/products?page=1&limit=10
 public class ProductController {
 
-    private final CategoryController categoryController;
-
-    ProductController(CategoryController categoryController) {
-        this.categoryController = categoryController;
-    }
-
     @GetMapping("")
     public ResponseEntity<String> getProducts(
             @RequestParam("page") int page,
