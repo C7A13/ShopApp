@@ -36,7 +36,7 @@ public class ProductDTO {
     private String description;
 
     @JsonProperty("category_id")
-    private String categoryID;
+    private Long categoryID;
 
     private List<MultipartFile> files;
 }

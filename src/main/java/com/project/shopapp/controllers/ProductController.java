@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -21,18 +22,28 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.project.shopapp.dtos.ProductDTO;
+import com.project.shopapp.dtos.ProductImageDTO;
+import com.project.shopapp.exceptions.DataNotFoundException;
+import com.project.shopapp.models.Product;
+import com.project.shopapp.models.ProductImage;
+import com.project.shopapp.services.ProductService;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController()
-@RequestMapping("${api.prefix}/products") // http://localhost:8088/api/v1/products?page=1&limit=10
+@RequestMapping("${api.prefix}/products")
+@RequiredArgsConstructor // http://localhost:8088/api/v1/products?page=1&limit=10
 public class ProductController {
+
+    private final ProductService productService;
 
     @GetMapping("")
     public ResponseEntity<String> getProducts(
@@ -41,12 +52,10 @@ public class ProductController {
         return ResponseEntity.ok("getProducts here");
     }
 
-    @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> insertProduct(
-            @Valid @ModelAttribute ProductDTO productDTO,
-            // @RequestPart("file") MultipartFile file,
+    @PostMapping(value = "")
+    public ResponseEntity<?> createProduct(
+            @Valid @RequestBody ProductDTO productDTO,
             BindingResult result) {
-
         try {
             if (result.hasErrors()) {
                 List<String> errorMessages = result.getFieldErrors()
@@ -55,8 +64,26 @@ public class ProductController {
                         .toList();
                 return ResponseEntity.badRequest().body(errorMessages);
             }
-            List<MultipartFile> files = productDTO.getFiles();
+            Product newProduct = productService.createProduct(productDTO);
+            return ResponseEntity.ok(newProduct);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
+    }
+
+    @PostMapping(value = "uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    private ResponseEntity<?> uploadImages(
+            @PathVariable("id") Long productId,
+            @RequestParam("files") List<MultipartFile> files) {
+        try {
+            Product existingProduct = productService.getProductById(productId);
             files = files == null ? new ArrayList<MultipartFile>() : files;
+            List<ProductImage> productImages = new ArrayList<>();
+            if (files.size() > ProductImage.MAXIMUM_IMAGES_PER_PRODUCT) {
+                return ResponseEntity.badRequest()
+                        .body("You can only upload maximum " + ProductImage.MAXIMUM_IMAGES_PER_PRODUCT + " images");
+            }
             for (MultipartFile file : files) {
 
                 if (file.getSize() == 0) {
@@ -75,23 +102,30 @@ public class ProductController {
                 }
                 // Lưu và cập nhật thumbnail
                 String filename = storeFile(file);
-                // Lưu vào db
+                // Lưu vào DB
+                ProductImage productImage = productService.createProductImage(
+                        existingProduct.getId(),
+                        ProductImageDTO.builder()
+                                .imageURL(filename)
+                                .build());
+                productImages.add(productImage);
             }
-            return ResponseEntity.ok("This is insertProductId");
+            return ResponseEntity.ok(productImages);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-
     }
 
-    // "name" : "mac bock m1 2013",
-    // "price" : "293.36",
-    // "thumbnail" : "Chhsidsfs",
-    // "description" : "dfdhfdfhd",
-    // "category_id" : "1"
+    private Boolean isImageFile(MultipartFile file) {
+        String contentType = file.getContentType();
+        return contentType != null && contentType.startsWith("image/");
+    }
 
     private String storeFile(MultipartFile file) throws IOException {
-        String filename = StringUtils.cleanPath(file.getOriginalFilename());
+        if (!isImageFile(file) || file.getOriginalFilename() == null) {
+            throw new IOException("Invalid file format");
+        }
+        String filename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
         // UUID + Tạo tên file duy nhất
         String uniqueFilename = UUID.randomUUID().toString() + "_" + filename;
         // Đường dẫn đến thư mục file
@@ -108,12 +142,15 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> updateProductById(@PathVariable("id") String productID) {
-        return ResponseEntity.ok("Update ProductId = " + productID);
+    public ResponseEntity<String> updateProductById(
+            @PathVariable("id") Long productID,
+            @RequestBody ProductDTO productDTO) throws DataNotFoundException {
+        productService.updateProduct(productID, productDTO);
+        return ResponseEntity.ok("Uppdate Successfully");
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteProductById(@PathVariable("id") String productID) {
+    public ResponseEntity<String> deleteProductById(@PathVariable("id") Long productID) {
         return ResponseEntity.ok("Delete ProductId = " + productID);
     }
 }
