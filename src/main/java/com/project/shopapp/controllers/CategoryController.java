@@ -32,20 +32,15 @@ public class CategoryController {
     @PostMapping("")
     public ResponseEntity<?> createCategory(@Valid @RequestBody CategoryDTO categoryDTO,
             BindingResult result) {
-        try {
-            if (result.hasErrors()) {
-                List<String> errorMessages = result.getFieldErrors()
-                        .stream()
-                        .map(FieldError::getDefaultMessage)
-                        .toList();
-                return ResponseEntity.badRequest().body(errorMessages);
-            }
-            this.categoryService.createCategory(categoryDTO);
-            return ResponseEntity.ok("Insert Category Successfully");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        if (result.hasErrors()) {
+            List<String> errorMessages = result.getFieldErrors()
+                    .stream()
+                    .map(FieldError::getDefaultMessage)
+                    .toList();
+            return ResponseEntity.badRequest().body(errorMessages);
         }
-
+        this.categoryService.createCategory(categoryDTO);
+        return ResponseEntity.ok("Insert Category Successfully");
     }
 
     @GetMapping("") // http://localhost:8088/api/v1/categories?page=1&limit=10

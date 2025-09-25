@@ -4,9 +4,12 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import com.project.shopapp.models.Category;
+import com.github.javafaker.Faker;
 import com.project.shopapp.dtos.ProductDTO;
 import com.project.shopapp.dtos.ProductImageDTO;
 import com.project.shopapp.exceptions.DataNotFoundException;
@@ -17,6 +20,7 @@ import com.project.shopapp.models.ProductImage;
 import com.project.shopapp.repositories.CategoryRepository;
 import com.project.shopapp.repositories.ProductImageRepository;
 import com.project.shopapp.repositories.ProductRepository;
+import com.project.shopapp.responses.ProductResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,31 +34,32 @@ public class ProductService implements IProductService {
     private final ProductMapper productMapper;
 
     @Override
-    public Product createProduct(ProductDTO productDTO) throws DataNotFoundException {
+    public Product createProduct(ProductDTO productDTO) {
         Category existingCategory = categoryRepository.findById(productDTO.getCategoryID())
                 .orElseThrow(() -> new DataNotFoundException("Category Id not found"));
         Product newProduct = Product.builder()
                 .name(productDTO.getName())
                 .price(productDTO.getPrice())
                 .thumbnail(productDTO.getThumbnail())
+                .description(productDTO.getDescription())
                 .category(existingCategory)
                 .build();
         return productRepository.save(newProduct);
     }
 
     @Override
-    public Product getProductById(long id) throws DataNotFoundException {
+    public Product getProductById(long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new DataNotFoundException("Can't find Product ID = " + id));
     }
 
     @Override
-    public Page<Product> getAllProducts(PageRequest pageRequest) {
-        return productRepository.findAll(pageRequest);
+    public Page<ProductResponse> getAllProducts(PageRequest pageRequest) {
+        return productRepository.findAll(pageRequest).map(product -> ProductResponse.fromProduct(product));
     }
 
     @Override
-    public Product updateProduct(long id, ProductDTO productDTO) throws DataNotFoundException {
+    public Product updateProduct(long id, ProductDTO productDTO) {
         Product existingProduct = getProductById(id);
         if (existingProduct != null) {
             Category existingCategory = categoryRepository.findById(productDTO.getCategoryID())
@@ -90,4 +95,5 @@ public class ProductService implements IProductService {
         }
         return productImageRepository.save(newProductImage);
     }
+
 }

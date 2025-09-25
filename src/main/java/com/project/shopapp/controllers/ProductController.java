@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,11 +31,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.github.javafaker.Faker;
 import com.project.shopapp.dtos.ProductDTO;
 import com.project.shopapp.dtos.ProductImageDTO;
-import com.project.shopapp.exceptions.DataNotFoundException;
 import com.project.shopapp.models.Product;
 import com.project.shopapp.models.ProductImage;
+import com.project.shopapp.responses.ProductListResponse;
+import com.project.shopapp.responses.ProductResponse;
 import com.project.shopapp.services.ProductService;
 
 import jakarta.validation.Valid;
@@ -46,36 +51,50 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping("")
-    public ResponseEntity<String> getProducts(
+    public ResponseEntity<ProductListResponse> getProducts(
             @RequestParam("page") int page,
             @RequestParam("limit") int limit) {
-        return ResponseEntity.ok("getProducts here");
+        PageRequest pageRequest = PageRequest.of(
+                page, limit, Sort.by(
+                        Sort.Order.desc("createdAt"),
+                        Sort.Order.desc("id")));
+        Page<ProductResponse> productPage = productService.getAllProducts(pageRequest);
+        // Lấy tổng số page
+        int totalPages = productPage.getTotalPages();
+        List<ProductResponse> products = productPage.getContent();
+        return ResponseEntity.ok(ProductListResponse.builder()
+                .products(products)
+                .totalPages(totalPages)
+                .build());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getProductById(
+            @PathVariable("id") Long productID) {
+        Product existingProduct = productService.getProductById(productID);
+        return ResponseEntity.ok(ProductResponse.fromProduct(existingProduct));
     }
 
     @PostMapping(value = "")
     public ResponseEntity<?> createProduct(
             @Valid @RequestBody ProductDTO productDTO,
             BindingResult result) {
-        try {
-            if (result.hasErrors()) {
-                List<String> errorMessages = result.getFieldErrors()
-                        .stream()
-                        .map(FieldError::getDefaultMessage)
-                        .toList();
-                return ResponseEntity.badRequest().body(errorMessages);
-            }
-            Product newProduct = productService.createProduct(productDTO);
-            return ResponseEntity.ok(newProduct);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        if (result.hasErrors()) {
+            List<String> errorMessages = result.getFieldErrors()
+                    .stream()
+                    .map(FieldError::getDefaultMessage)
+                    .toList();
+            return ResponseEntity.badRequest().body(errorMessages);
         }
+        Product newProduct = productService.createProduct(productDTO);
+        return ResponseEntity.ok(newProduct);
 
     }
 
     @PostMapping(value = "uploads/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     private ResponseEntity<?> uploadImages(
             @PathVariable("id") Long productId,
-            @RequestParam("files") List<MultipartFile> files) {
+            @ModelAttribute("files") List<MultipartFile> files) {
         try {
             Product existingProduct = productService.getProductById(productId);
             files = files == null ? new ArrayList<MultipartFile>() : files;
@@ -144,7 +163,7 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<String> updateProductById(
             @PathVariable("id") Long productID,
-            @RequestBody ProductDTO productDTO) throws DataNotFoundException {
+            @RequestBody ProductDTO productDTO) {
         productService.updateProduct(productID, productDTO);
         return ResponseEntity.ok("Uppdate Successfully");
     }
@@ -152,5 +171,21 @@ public class ProductController {
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteProductById(@PathVariable("id") Long productID) {
         return ResponseEntity.ok("Delete ProductId = " + productID);
+    }
+
+    @PostMapping("/generateFakeProducts")
+    private ResponseEntity<?> generateFakeProducts() {
+        Faker faker = new Faker();
+        for (int i = 0; i < 10000; i++) {
+            String productName = faker.commerce().productName();
+            ProductDTO productDTO = ProductDTO.builder()
+                    .name(productName)
+                    .price((float) faker.number().numberBetween(10, 9000000))
+                    .description(faker.lorem().sentence())
+                    .categoryID((long) faker.number().numberBetween(1, 4))
+                    .build();
+            productService.createProduct(productDTO);
+        }
+        return ResponseEntity.ok().body("Create Product Successfully");
     }
 }

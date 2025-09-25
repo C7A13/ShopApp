@@ -22,7 +22,7 @@ public class UserService implements IUserService {
     private final UserMapper userMapper;
 
     @Override
-    public User createUser(UserDTO userDTO) throws DataNotFoundException {
+    public User createUser(UserDTO userDTO) {
         if (userRepository.existsByPhoneNumber(userDTO.getPhoneNumber())) {
             throw new DataIntegrityViolationException("Phone Number is exist");
         }
