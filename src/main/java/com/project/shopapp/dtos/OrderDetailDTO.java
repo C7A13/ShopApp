@@ -28,8 +28,8 @@ public class OrderDetailDTO {
     private Float price;
 
     @Min(value = 1, message = "Total must be than >= 1")
-    @JsonProperty("number_of_product")
-    private int numberOfProduct;
+    @JsonProperty("number_of_products")
+    private int numberOfProducts;
 
     @JsonProperty("total_money")
     @Min(value = 0, message = "Total must be than >= 0")

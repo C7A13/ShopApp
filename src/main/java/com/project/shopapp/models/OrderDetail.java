@@ -38,8 +38,8 @@ public class OrderDetail {
     @Column(name = "total_money", nullable = false)
     private Float totalMoney;
 
-    @Column(name = "number_of_product")
-    private int numberOfProduct;
+    @Column(name = "number_of_products")
+    private int numberOfProducts;
 
     @Column(name = "color")
     private String color;

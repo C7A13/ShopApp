@@ -15,46 +15,54 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.project.shopapp.dtos.OrderDTO;
+import com.project.shopapp.models.Order;
+import com.project.shopapp.services.OrderService;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("${api.prefix}/orders")
+@RequiredArgsConstructor
 public class OrderController {
+    private final OrderService orderService;
+
     @PostMapping("")
     public ResponseEntity<?> createOrder(@Valid @RequestBody OrderDTO orderDTO,
             BindingResult result) {
-        try {
-            if (result.hasErrors()) {
-                List<String> errorMessages = result.getFieldErrors()
-                        .stream()
-                        .map(FieldError::getDefaultMessage)
-                        .toList();
-                return ResponseEntity.badRequest().body(errorMessages);
-            }
-            return ResponseEntity.ok("This is createOrder");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        if (result.hasErrors()) {
+            List<String> errorMessages = result.getFieldErrors()
+                    .stream()
+                    .map(FieldError::getDefaultMessage)
+                    .toList();
+            return ResponseEntity.badRequest().body(errorMessages);
         }
+        Order order = orderService.createOrder(orderDTO);
+        return ResponseEntity.ok(order);
     }
 
-    @GetMapping("/{user_id}")
-    public ResponseEntity<String> getOrderByUserId(@Valid @PathVariable("user_id") Long userId) {
-        try {
-            return ResponseEntity.ok("List order by user");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    @GetMapping("/user/{user_id}")
+    public ResponseEntity<?> getOrdersByUserId(@Valid @PathVariable("user_id") Long userId) {
+        List<Order> orders = orderService.findByUserId(userId);
+        return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getOrderById(@Valid @PathVariable("id") Long id) {
+        Order existingOrder = orderService.getOrderById(id);
+        return ResponseEntity.ok(existingOrder);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> updateOrderByUserId(@Valid @PathVariable("id") Long id) {
-        // xóa mềm => active = 0
-        return ResponseEntity.ok("Order update successfully");
+    public ResponseEntity<?> updateOrderByUserId(@Valid @PathVariable("id") Long id,
+            @RequestBody OrderDTO orderDTO) {
+        Order newOrder = orderService.updateOrder(id, orderDTO);
+        return ResponseEntity.ok(newOrder);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteOrderByUserId(@Valid @PathVariable("id") Long id) {
+        orderService.deleteOrder(id);
         return ResponseEntity.ok("Order delete successfully");
     }
 }
